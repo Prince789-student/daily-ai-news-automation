@@ -1,0 +1,23 @@
+name: Tech Leaders Real-Time Tracker
+
+on:
+  schedule:
+    # Runs every 2 hours automatically in the cloud to catch breaking posts!
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Manual 1-click trigger
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Scan & Dispatch Leader Updates
+        run: |
+          python leader_tracker.py
