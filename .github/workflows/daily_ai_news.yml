@@ -17,9 +17,19 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Dependencies
+        run: |
+          pip install requests
+
       - name: Run AI News Gathering & Telegram Dispatch
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python run_daily_digest.py --telegram-only
+
+      - name: Send Daily 9:00 AM Email Alert to Gmail
+        env:
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: |
+          python send_email_alert.py

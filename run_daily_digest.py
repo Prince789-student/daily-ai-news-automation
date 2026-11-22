@@ -192,6 +192,14 @@ def main():
         log("Dispatching FULL in-depth briefing to Telegram...")
         send_telegram_message(full_telegram_text)
 
+    # Dispatch Daily 9:00 AM Email Reminder to Gmail
+    try:
+        from send_email_alert import send_email_alert
+        log("Dispatching 9:00 AM reminder email to Gmail (prince86944@gmail.com)...")
+        send_email_alert()
+    except Exception as e:
+        log(f"Email reminder note: {e}")
+
     # Dispatch to WhatsApp (if not telegram-only)
     if not args.telegram_only:
         log("Dispatching summary to WhatsApp...")
