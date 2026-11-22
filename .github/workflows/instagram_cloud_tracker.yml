@@ -1,0 +1,27 @@
+name: Instagram Video Cloud Tracker
+
+on:
+  schedule:
+    # Runs automatically in the cloud every 4 hours!
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # Allows manual trigger anytime
+
+jobs:
+  download-and-send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yt-dlp & dependencies
+        run: |
+          pip install yt-dlp requests
+
+      - name: Check Instagram & Send Videos to Telegram
+        run: |
+          python instagram_tracker.py
