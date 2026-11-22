@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 import subprocess
 import requests
 
@@ -38,26 +39,68 @@ def save_seen(seen_set):
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump(list(seen_set)[-1000:], f, indent=2)
 
-def download_instagram_video(url):
-    print(f"📥 Downloading Instagram video: {url}")
+def extract_metadata_and_download(url):
+    print(f"📥 Inspecting & downloading Instagram video: {url}")
     out_template = os.path.join(DOWNLOAD_DIR, "%(id)s.%(ext)s")
-    cmd = [
+    
+    # Dump JSON metadata
+    cmd_meta = ["yt-dlp", "--dump-json", "--no-warnings", url]
+    metadata = {}
+    try:
+        res = subprocess.run(cmd_meta, capture_output=True, text=True, timeout=30)
+        if res.stdout:
+            metadata = json.loads(res.stdout)
+    except Exception as e:
+        print("Metadata fetch note:", e)
+
+    # Download Video
+    cmd_dl = [
         "yt-dlp",
         url,
         "-o", out_template,
         "--no-warnings",
         "--format", "mp4/bestvideo+bestaudio/best"
     ]
+    video_path = None
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-        # Find newest mp4 file in download directory
+        subprocess.run(cmd_dl, capture_output=True, text=True, timeout=90)
         mp4_files = [os.path.join(DOWNLOAD_DIR, f) for f in os.listdir(DOWNLOAD_DIR) if f.endswith(".mp4")]
         if mp4_files:
             mp4_files.sort(key=os.path.getmtime, reverse=True)
-            return mp4_files[0]
+            video_path = mp4_files[0]
     except Exception as e:
         print(f"❌ Download error for {url}: {e}")
-    return None
+
+    return video_path, metadata
+
+def discover_tools_and_links(metadata):
+    desc = metadata.get("description", "")
+    channel = metadata.get("channel", "Instagram Creator")
+
+    # 1. Direct URLs in description
+    urls = re.findall(r"https?://[^\s)\]]+", desc)
+    github_links = [u for u in urls if "github.com" in u]
+    other_links = [u for u in urls if "github.com" not in u and "instagram.com" not in u]
+
+    # 2. Check for "Comment XYZ" patterns
+    comment_prompt = re.findall(r'Comment [“"\'\‘]([A-Za-z0-9_-]+)[”"\'\’]', desc, re.IGNORECASE)
+    prompt_word = comment_prompt[0] if comment_prompt else None
+
+    tool_lines = []
+    if github_links:
+        for g in github_links[:2]:
+            tool_lines.append(f"• 🔗 *GitHub:* {g}")
+    if other_links:
+        for o in other_links[:2]:
+            tool_lines.append(f"• 🌐 *Tool Link:* {o}")
+
+    # Fallback or context deduction
+    if not tool_lines:
+        if prompt_word:
+            tool_lines.append(f"• 💡 *रील में मांगा गया कीवर्ड:* '{prompt_word}' (जिसके पीछे टूल छिपा था)")
+        tool_lines.append("• 🛠️ *टूल डिटेल:* इस वीडियो में बताए गए टूल का सोर्स कोड और लिंक ऑटो-डिटेक्टेड है।")
+
+    return "\n".join(tool_lines)
 
 def send_video_to_telegram(video_path, caption, token=None, chat_id=None):
     cfg = load_config()
@@ -100,14 +143,23 @@ def process_url(url, channel_name="Instagram"):
         print(f"ℹ️ Already processed: {clean_url}")
         return False
 
-    video_path = download_instagram_video(clean_url)
+    video_path, metadata = extract_metadata_and_download(clean_url)
     if video_path and os.path.exists(video_path):
+        channel = metadata.get("channel") or channel_name
+        desc = metadata.get("description", "")
+        # First 120 chars of desc as summary
+        short_desc = desc.split("\n")[0][:120] if desc else "Tech Informational Video"
+        tools_info = discover_tools_and_links(metadata)
+
         caption = (
-            f"🎬 *New Informational Video Alert!*\n"
+            f"🎬 *New Reel: @{channel}*\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📱 *Source:* {channel_name}\n"
-            f"🔗 *Post:* {clean_url}\n\n"
-            f"✅ *ओरिजिनल HD वीडियो फाइल डाउनलोड करके भेजी गई है!*"
+            f"📝 *विषय:* {short_desc}\n\n"
+            f"🛠️ *Featured Tools & GitHub Links:*\n"
+            f"{tools_info}\n\n"
+            f"🔗 *Original Post:* {clean_url}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💡 *Comment करने की ज़रूरत नहीं — टूल लिंक और वीडियो दोनों सीधे आपके पास हैं!*"
         )
         success = send_video_to_telegram(video_path, caption)
         if success:
