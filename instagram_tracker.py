@@ -15,6 +15,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Top Indian & Global High-Value AI, Coding & Automation Creators
 TARGET_CHANNELS = [
+    "baljeet.ai",
     "its_anmol.ai",
     "tech.vision24",
     "ai.with.etqad",
@@ -33,7 +34,10 @@ TARGET_CHANNELS = [
     "techno_ruhez",
     "sanidhyatulsinandan",
     "futurepedia_io",
-    "techinsider_ai"
+    "techinsider_ai",
+    "mattvidproai",
+    "digi.aniket",
+    "techietarget"
 ]
 
 def load_config():
