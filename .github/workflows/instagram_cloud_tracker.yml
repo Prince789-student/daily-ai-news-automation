@@ -2,9 +2,12 @@ name: Instagram Video Cloud Tracker
 
 on:
   schedule:
-    # Runs automatically in the cloud every 4 hours!
-    - cron: '0 */4 * * *'
+    # Runs automatically in the cloud every 3 hours!
+    - cron: '0 */3 * * *'
   workflow_dispatch: # Allows manual trigger anytime
+
+permissions:
+  contents: write
 
 jobs:
   download-and-send:
@@ -18,10 +21,17 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install yt-dlp & dependencies
+      - name: Install Dependencies
         run: |
-          pip install yt-dlp requests
+          pip install yt-dlp requests selenium
 
-      - name: Check Instagram & Send Videos to Telegram
+      - name: Run Instagram Monitor & Deliver Videos
         run: |
           python instagram_tracker.py
+
+      - name: Save & Commit Seen Posts State
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_instagram_posts.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Sync seen Instagram reels [skip ci]" && git push)
