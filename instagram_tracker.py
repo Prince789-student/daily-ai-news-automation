@@ -15,6 +15,17 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # Top Indian & Global High-Value AI, Coding & Automation Creators
 TARGET_CHANNELS = [
+    "codernormie",
+    "rachit.speaks",
+    "beyondtahir",
+    "mister.a1b",
+    "_akshay_nandwana",
+    "agam.nexgen.ai",
+    "vivekrajaniofficial",
+    "sunmughan",
+    "techtalkswithayush",
+    "rise.chapter",
+    "priyantan2.0",
     "baljeet.ai",
     "its_anmol.ai",
     "tech.vision24",
