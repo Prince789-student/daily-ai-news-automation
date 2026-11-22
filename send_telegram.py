@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import urllib.parse
 import urllib.request
 
@@ -60,32 +61,59 @@ def send_telegram_message(text, token=None, chat_id=None):
             print("⚠️ Kripya apne Telegram Bot ko khol kar 'Start' button dabayein, fir dubara try karein.")
             return False
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": target_chat,
-        "text": text,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": False
-    }
-    data = json.dumps(payload).encode("utf-8")
-
-    try:
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={"Content-Type": "application/json", "User-Agent": "TelegramNewsBot/1.0"}
-        )
-        with urllib.request.urlopen(req, timeout=20) as res:
-            resp = json.loads(res.read().decode("utf-8"))
-            if resp.get("ok"):
-                print(f"✅ Telegram par message safaltapoorvak bhej diya gaya! (Chat ID: {target_chat})")
-                return True
+    # Telegram message length limit is 4096. Split into chunks if needed.
+    max_len = 3800
+    chunks = []
+    if len(text) <= max_len:
+        chunks = [text]
+    else:
+        parts = text.split("\n\n---\n\n")
+        current_chunk = []
+        current_len = 0
+        for part in parts:
+            part_len = len(part) + 8
+            if current_len + part_len > max_len and current_chunk:
+                chunks.append("\n\n---\n\n".join(current_chunk))
+                current_chunk = [part]
+                current_len = len(part)
             else:
-                print(f"⚠️ Telegram API error: {resp}")
-    except Exception as e:
-        print(f"❌ Failed to send Telegram message: {e}", file=sys.stderr)
+                current_chunk.append(part)
+                current_len += part_len
+        if current_chunk:
+            chunks.append("\n\n---\n\n".join(current_chunk))
 
-    return False
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    success_all = True
+    for idx, chunk in enumerate(chunks, 1):
+        payload = {
+            "chat_id": target_chat,
+            "text": chunk,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": False
+        }
+        data = json.dumps(payload).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={"Content-Type": "application/json", "User-Agent": "TelegramNewsBot/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=20) as res:
+                resp = json.loads(res.read().decode("utf-8"))
+                if resp.get("ok"):
+                    if len(chunks) > 1:
+                        print(f"✅ Telegram message part {idx}/{len(chunks)} sent!")
+                        time.sleep(1.2)
+                    else:
+                        print(f"✅ Telegram par message safaltapoorvak bhej diya gaya! (Chat ID: {target_chat})")
+                else:
+                    print(f"⚠️ Telegram API error on part {idx}: {resp}")
+                    success_all = False
+        except Exception as e:
+            print(f"❌ Failed to send Telegram message part {idx}: {e}", file=sys.stderr)
+            success_all = False
+
+    return success_all
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
